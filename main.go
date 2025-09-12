@@ -3,13 +3,15 @@ package main
 import (
 	"fmt"
 	"os"
+
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 func main() {
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
 		case "--version", "-v":
-			fmt.Println("lazytodo v0.1.0")
+			fmt.Println("lazytodo v0.2.0 (Charm Edition)")
 			return
 		case "--help", "-h":
 			printHelp()
@@ -17,15 +19,21 @@ func main() {
 		}
 	}
 
-	app := NewApp()
-	if err := app.Run(); err != nil {
+	// Start Bubble Tea app
+	p := tea.NewProgram(
+		initialModel(),
+		tea.WithAltScreen(),
+		tea.WithMouseCellMotion(),
+	)
+
+	if _, err := p.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
 }
 
 func printHelp() {
-	fmt.Println("lazytodo - A TUI wrapper for todo.txt")
+	fmt.Println("lazytodo - A TUI wrapper for todo.txt (Charm Edition)")
 	fmt.Println("")
 	fmt.Println("Usage:")
 	fmt.Println("  lazytodo                 Start the TUI")
@@ -41,4 +49,6 @@ func printHelp() {
 	fmt.Println("  e          Edit todo")
 	fmt.Println("  ?          Show help")
 	fmt.Println("  q/Ctrl+C   Quit")
+	fmt.Println("")
+	fmt.Println("🎭 Powered by Charm - https://charm.sh")
 }

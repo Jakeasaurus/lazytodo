@@ -1,325 +1,502 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
-	"os"
-	"os/exec"
 	"strings"
-	"syscall"
-	"unsafe"
+	"time"
+
+	"github.com/charmbracelet/bubbles/help"
+	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/list"
+	"github.com/charmbracelet/bubbles/textinput"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
-type App struct {
-	todoManager *TodoManager
-	cursor      int
-	showHelp    bool
-	inputMode   InputMode
-	inputBuffer string
-	inputPrompt string
-}
+// Styles using Lip Gloss
+var (
+	appStyle = lipgloss.NewStyle().
+		Padding(1, 2)
 
-type InputMode int
+	titleStyle = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#FAFAFA")).
+		Background(lipgloss.Color("#7D56F4")).
+		Padding(0, 1)
 
-const (
-	ModeNormal InputMode = iota
-	ModeAdd
-	ModeEdit
+	statusMessageStyle = lipgloss.NewStyle().
+		Foreground(lipgloss.AdaptiveColor{Light: "#04B575", Dark: "#04B575"}).
+		Render
+
+	todoListStyle = lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("#874BFD")).
+		Padding(0, 1).
+		Height(20).
+		Width(50)
+
+	detailsStyle = lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("#F25D94")).
+		Padding(0, 1).
+		Height(20).
+		Width(30)
+
+	helpStyle = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#626262"))
+
+	inputStyle = lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("#FF7CCB")).
+		Padding(1).
+		Width(50)
+
+	completedStyle = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#626262")).
+		Strikethrough(true)
+
+	priorityStyle = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#FF5F87")).
+		Bold(true)
+
+	projectStyle = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#5FAFFF"))
+
+	contextStyle = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#FFAF5F"))
 )
 
-func NewApp() *App {
-	return &App{
-		todoManager: NewTodoManager(),
-		cursor:      0,
-		showHelp:    false,
-		inputMode:   ModeNormal,
-	}
+// TodoItem represents a todo item for the list component
+type TodoItem struct {
+	todo Todo
 }
 
-func (app *App) Run() error {
-	if err := app.enableRawMode(); err != nil {
-		return err
+func (i TodoItem) FilterValue() string { return i.todo.Text }
+func (i TodoItem) Title() string {
+	title := i.todo.Text
+	
+	// Add priority
+	if i.todo.Priority != "" {
+		title = priorityStyle.Render(fmt.Sprintf("(%s) ", i.todo.Priority)) + title
 	}
-	defer app.disableRawMode()
-
-	for {
-		if err := app.draw(); err != nil {
-			return err
-		}
-
-		key, err := app.readKey()
-		if err != nil {
-			return err
-		}
-
-		if app.inputMode == ModeNormal {
-			if app.showHelp {
-				if key == '?' || key == 'q' || key == 27 {
-					app.showHelp = false
-				}
-				continue
-			}
-
-			switch key {
-			case 'q', 3:
-				return nil
-			case 'j', 65516:
-				app.moveCursor(1)
-			case 'k', 65517:
-				app.moveCursor(-1)
-			case 'a':
-				app.startAddMode()
-			case 'd':
-				app.deleteTodo()
-			case 'x', ' ':
-				app.toggleTodo()
-			case 'e':
-				app.startEditMode()
-			case '?':
-				app.showHelp = true
-			case 'r':
-				app.todoManager.Load()
-			}
-		} else {
-			if key == 27 {
-				app.cancelInput()
-			} else if key == 13 {
-				app.submitInput()
-			} else if key == 127 {
-				app.backspace()
-			} else if key >= 32 && key <= 126 {
-				app.inputBuffer += string(rune(key))
-			}
-		}
-	}
-}
-
-func (app *App) draw() error {
-	app.clearScreen()
-	app.setCursor(1, 1)
-
-	if app.showHelp {
-		app.drawHelp()
-		return nil
-	}
-
-	fmt.Print("lazytodo - Todo.txt TUI\n\n")
-
-	todos := app.todoManager.GetTodos()
-
-	if len(todos) == 0 {
-		fmt.Println("No todos found. Press 'a' to add one, '?' for help.")
-		return nil
-	}
-
-	if app.cursor >= len(todos) {
-		app.cursor = len(todos) - 1
-	}
-	if app.cursor < 0 {
-		app.cursor = 0
-	}
-
-	for i, todo := range todos {
-		prefix := "  "
-		if i == app.cursor {
-			prefix = "> "
-		}
-
-		status := "[ ]"
-		if todo.Completed {
-			status = "[x]"
-		}
-
-		priority := ""
-		if todo.Priority != "" {
-			priority = fmt.Sprintf("(%s) ", todo.Priority)
-		}
-
-		fmt.Printf("%s%s %s%s\n", prefix, status, priority, todo.Text)
-	}
-
-	fmt.Print("\n")
-
-	if app.inputMode != ModeNormal {
-		fmt.Printf("%s%s", app.inputPrompt, app.inputBuffer)
+	
+	// Style completed items
+	if i.todo.Completed {
+		title = completedStyle.Render("✓ " + title)
 	} else {
-		fmt.Print("j/k: move, a: add, x: toggle, d: delete, e: edit, ?: help, q: quit")
+		title = "○ " + title
 	}
+	
+	// Highlight projects and contexts
+	for _, project := range i.todo.Projects {
+		title = strings.ReplaceAll(title, "+"+project, projectStyle.Render("+"+project))
+	}
+	for _, context := range i.todo.Contexts {
+		title = strings.ReplaceAll(title, "@"+context, contextStyle.Render("@"+context))
+	}
+	
+	return title
+}
 
+func (i TodoItem) Description() string {
+	desc := ""
+	if i.todo.CreatedDate != "" {
+		desc += "Created: " + i.todo.CreatedDate
+	}
+	if len(i.todo.Projects) > 0 || len(i.todo.Contexts) > 0 {
+		if desc != "" {
+			desc += " • "
+		}
+		if len(i.todo.Projects) > 0 {
+			desc += "Projects: " + strings.Join(i.todo.Projects, ", ")
+		}
+		if len(i.todo.Contexts) > 0 {
+			if len(i.todo.Projects) > 0 {
+				desc += " • "
+			}
+			desc += "Contexts: " + strings.Join(i.todo.Contexts, ", ")
+		}
+	}
+	return helpStyle.Render(desc)
+}
+
+// Model represents the application state
+type Model struct {
+	todoManager *TodoManager
+	list        list.Model
+	textInput   textinput.Model
+	help        help.Model
+	inputMode   InputMode
+	showHelp    bool
+	statusMsg   string
+	width       int
+	height      int
+}
+
+// Key bindings
+type keyMap struct {
+	Up    key.Binding
+	Down  key.Binding
+	Add   key.Binding
+	Edit  key.Binding
+	Delete key.Binding
+	Toggle key.Binding
+	Help   key.Binding
+	Quit   key.Binding
+	Refresh key.Binding
+	Enter   key.Binding
+	Escape  key.Binding
+}
+
+func (k keyMap) ShortHelp() []key.Binding {
+	return []key.Binding{k.Add, k.Toggle, k.Delete, k.Help, k.Quit}
+}
+
+func (k keyMap) FullHelp() [][]key.Binding {
+	return [][]key.Binding{
+		{k.Up, k.Down, k.Add, k.Edit},
+		{k.Toggle, k.Delete, k.Refresh},
+		{k.Help, k.Quit},
+	}
+}
+
+var keys = keyMap{
+	Up: key.NewBinding(
+		key.WithKeys("k", "up"),
+		key.WithHelp("↑/k", "move up"),
+	),
+	Down: key.NewBinding(
+		key.WithKeys("j", "down"),
+		key.WithHelp("↓/j", "move down"),
+	),
+	Add: key.NewBinding(
+		key.WithKeys("a"),
+		key.WithHelp("a", "add todo"),
+	),
+	Edit: key.NewBinding(
+		key.WithKeys("e"),
+		key.WithHelp("e", "edit todo"),
+	),
+	Delete: key.NewBinding(
+		key.WithKeys("d"),
+		key.WithHelp("d", "delete todo"),
+	),
+	Toggle: key.NewBinding(
+		key.WithKeys("x", " "),
+		key.WithHelp("x/space", "toggle complete"),
+	),
+	Help: key.NewBinding(
+		key.WithKeys("?"),
+		key.WithHelp("?", "toggle help"),
+	),
+	Quit: key.NewBinding(
+		key.WithKeys("q", "ctrl+c"),
+		key.WithHelp("q", "quit"),
+	),
+	Refresh: key.NewBinding(
+		key.WithKeys("r"),
+		key.WithHelp("r", "refresh"),
+	),
+	Enter: key.NewBinding(
+		key.WithKeys("enter"),
+		key.WithHelp("enter", "confirm"),
+	),
+	Escape: key.NewBinding(
+		key.WithKeys("esc"),
+		key.WithHelp("esc", "cancel"),
+	),
+}
+
+// Initialize the model
+func initialModel() Model {
+	// Create todo manager
+	tm := NewTodoManager()
+	
+	// Create list model
+	items := []list.Item{}
+	for _, todo := range tm.GetTodos() {
+		items = append(items, TodoItem{todo: todo})
+	}
+	
+	l := list.New(items, list.NewDefaultDelegate(), 0, 0)
+	l.Title = "📋 Todo List"
+	l.SetShowStatusBar(true)
+	l.SetFilteringEnabled(true)
+	l.Styles.Title = titleStyle
+	l.Styles.PaginationStyle = helpStyle
+	l.Styles.HelpStyle = helpStyle
+	
+	// Create text input
+	ti := textinput.New()
+	ti.Placeholder = "Enter your todo..."
+	ti.Focus()
+	ti.CharLimit = 200
+	ti.Width = 50
+	
+	// Create help
+	h := help.New()
+	
+	return Model{
+		todoManager: tm,
+		list:        l,
+		textInput:   ti,
+		help:        h,
+		inputMode:   ModeNormal,
+		showHelp:    false,
+	}
+}
+
+// Init initializes the model
+func (m Model) Init() tea.Cmd {
 	return nil
 }
 
-func (app *App) drawHelp() {
-	fmt.Println("lazytodo - Help")
-	fmt.Println("===============")
-	fmt.Println("")
-	fmt.Println("Navigation:")
-	fmt.Println("  j / ↓        Move cursor down")
-	fmt.Println("  k / ↑        Move cursor up")
-	fmt.Println("")
-	fmt.Println("Todo Actions:")
-	fmt.Println("  a            Add new todo")
-	fmt.Println("  x / Space    Toggle todo completion")
-	fmt.Println("  d            Delete todo")
-	fmt.Println("  e            Edit todo")
-	fmt.Println("")
-	fmt.Println("Other:")
-	fmt.Println("  r            Refresh (reload from file)")
-	fmt.Println("  ?            Show/hide this help")
-	fmt.Println("  q / Ctrl+C   Quit")
-	fmt.Println("")
-	fmt.Println("Todo.txt format:")
-	fmt.Println("  (A) Priority A task +project @context")
-	fmt.Println("  x 2023-01-01 Completed task")
-	fmt.Println("  2023-01-01 Task with creation date")
-	fmt.Println("")
-	fmt.Println("Press '?' or 'q' to close help")
-}
-
-func (app *App) moveCursor(delta int) {
-	todos := app.todoManager.GetTodos()
-	app.cursor += delta
-	if app.cursor < 0 {
-		app.cursor = 0
-	}
-	if app.cursor >= len(todos) {
-		app.cursor = len(todos) - 1
-	}
-}
-
-func (app *App) startAddMode() {
-	app.inputMode = ModeAdd
-	app.inputBuffer = ""
-	app.inputPrompt = "Add todo: "
-}
-
-func (app *App) startEditMode() {
-	todos := app.todoManager.GetTodos()
-	if len(todos) == 0 || app.cursor >= len(todos) {
-		return
-	}
-
-	app.inputMode = ModeEdit
-	app.inputBuffer = todos[app.cursor].Text
-	app.inputPrompt = "Edit todo: "
-}
-
-func (app *App) toggleTodo() {
-	todos := app.todoManager.GetTodos()
-	if len(todos) == 0 || app.cursor >= len(todos) {
-		return
-	}
-
-	app.todoManager.ToggleComplete(todos[app.cursor].ID)
-}
-
-func (app *App) deleteTodo() {
-	todos := app.todoManager.GetTodos()
-	if len(todos) == 0 || app.cursor >= len(todos) {
-		return
-	}
-
-	app.todoManager.DeleteTodo(todos[app.cursor].ID)
-	if app.cursor >= len(todos)-1 && app.cursor > 0 {
-		app.cursor--
-	}
-}
-
-func (app *App) cancelInput() {
-	app.inputMode = ModeNormal
-	app.inputBuffer = ""
-	app.inputPrompt = ""
-}
-
-func (app *App) submitInput() {
-	if strings.TrimSpace(app.inputBuffer) == "" {
-		app.cancelInput()
-		return
-	}
-
-	switch app.inputMode {
-	case ModeAdd:
-		app.todoManager.AddTodo(app.inputBuffer)
-	case ModeEdit:
-		todos := app.todoManager.GetTodos()
-		if len(todos) > 0 && app.cursor < len(todos) {
-			app.todoManager.UpdateTodo(todos[app.cursor].ID, app.inputBuffer)
-		}
-	}
-
-	app.cancelInput()
-}
-
-func (app *App) backspace() {
-	if len(app.inputBuffer) > 0 {
-		app.inputBuffer = app.inputBuffer[:len(app.inputBuffer)-1]
-	}
-}
-
-func (app *App) clearScreen() {
-	fmt.Print("\x1b[2J")
-}
-
-func (app *App) setCursor(row, col int) {
-	fmt.Printf("\x1b[%d;%dH", row, col)
-}
-
-func (app *App) enableRawMode() error {
-	cmd := exec.Command("stty", "-echo", "cbreak")
-	cmd.Stdin = os.Stdin
-	return cmd.Run()
-}
-
-func (app *App) disableRawMode() error {
-	cmd := exec.Command("stty", "echo", "-cbreak")
-	cmd.Stdin = os.Stdin
-	return cmd.Run()
-}
-
-func (app *App) readKey() (int, error) {
-	reader := bufio.NewReader(os.Stdin)
-	char, err := reader.ReadByte()
-	if err != nil {
-		return 0, err
-	}
-
-	if char == 27 {
-		if reader.Buffered() > 0 {
-			next, _ := reader.ReadByte()
-			if next == 91 {
-				if reader.Buffered() > 0 {
-					arrow, _ := reader.ReadByte()
-					switch arrow {
-					case 65:
-						return 65517, nil
-					case 66:
-						return 65516, nil
+// Update handles messages
+func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
+	var cmds []tea.Cmd
+	
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
+		m.height = msg.Height
+		
+		// Update list size
+		listWidth := msg.Width*2/3 - 4
+		listHeight := msg.Height - 10
+		m.list.SetSize(listWidth, listHeight)
+		
+		// Update help
+		m.help.Width = msg.Width
+		
+		return m, nil
+		
+	case tea.KeyMsg:
+		// Handle input mode
+		if m.inputMode != ModeNormal {
+			switch msg.String() {
+			case "enter":
+				// Submit input
+				input := strings.TrimSpace(m.textInput.Value())
+				if input != "" {
+					switch m.inputMode {
+					case ModeAdd:
+						m.todoManager.AddTodo(input)
+						m.statusMsg = statusMessageStyle("Added: " + input)
+					case ModeEdit:
+						if item, ok := m.list.SelectedItem().(TodoItem); ok {
+							m.todoManager.UpdateTodo(item.todo.ID, input)
+							m.statusMsg = statusMessageStyle("Updated todo")
+						}
 					}
+					m.refreshList()
 				}
+				m.inputMode = ModeNormal
+				m.textInput.SetValue("")
+				return m, nil
+				
+			case "esc":
+				m.inputMode = ModeNormal
+				m.textInput.SetValue("")
+				return m, nil
+			default:
+				m.textInput, cmd = m.textInput.Update(msg)
+				return m, cmd
 			}
 		}
-		return 27, nil
+		
+		// Handle help mode
+		if m.showHelp {
+			switch msg.String() {
+			case "?", "q", "esc":
+				m.showHelp = false
+				return m, nil
+			}
+			return m, nil
+		}
+		
+		// Handle normal mode
+		switch {
+		case key.Matches(msg, keys.Quit):
+			return m, tea.Quit
+			
+		case key.Matches(msg, keys.Add):
+			m.inputMode = ModeAdd
+			m.textInput.Placeholder = "Enter new todo..."
+			m.textInput.SetValue("")
+			m.textInput.Focus()
+			return m, nil
+			
+		case key.Matches(msg, keys.Edit):
+			if item, ok := m.list.SelectedItem().(TodoItem); ok {
+				m.inputMode = ModeEdit
+				m.textInput.Placeholder = "Edit todo..."
+				m.textInput.SetValue(item.todo.Text)
+				m.textInput.Focus()
+			}
+			return m, nil
+			
+		case key.Matches(msg, keys.Delete):
+			if item, ok := m.list.SelectedItem().(TodoItem); ok {
+				m.todoManager.DeleteTodo(item.todo.ID)
+				m.statusMsg = statusMessageStyle("Deleted todo")
+				m.refreshList()
+			}
+			return m, nil
+			
+		case key.Matches(msg, keys.Toggle):
+			if item, ok := m.list.SelectedItem().(TodoItem); ok {
+				m.todoManager.ToggleComplete(item.todo.ID)
+				status := "completed"
+				if item.todo.Completed {
+					status = "uncompleted"
+				}
+				m.statusMsg = statusMessageStyle("Todo " + status)
+				m.refreshList()
+			}
+			return m, nil
+			
+		case key.Matches(msg, keys.Refresh):
+			m.todoManager.Load()
+			m.refreshList()
+			m.statusMsg = statusMessageStyle("Refreshed from file")
+			return m, nil
+			
+		case key.Matches(msg, keys.Help):
+			m.showHelp = !m.showHelp
+			return m, nil
+		}
+		
+		// Update list
+		m.list, cmd = m.list.Update(msg)
+		cmds = append(cmds, cmd)
 	}
-
-	return int(char), nil
+	
+	return m, tea.Batch(cmds...)
 }
 
-type winsize struct {
-	Row    uint16
-	Col    uint16
-	Xpixel uint16
-	Ypixel uint16
+// refreshList updates the list items from the todo manager
+func (m *Model) refreshList() {
+	items := []list.Item{}
+	for _, todo := range m.todoManager.GetTodos() {
+		items = append(items, TodoItem{todo: todo})
+	}
+	m.list.SetItems(items)
 }
 
-func getTerminalSize() (int, int, error) {
-	ws := &winsize{}
-	retCode, _, errno := syscall.Syscall(syscall.SYS_IOCTL,
-		uintptr(syscall.Stdin),
-		uintptr(syscall.TIOCGWINSZ),
-		uintptr(unsafe.Pointer(ws)))
-
-	if int(retCode) == -1 {
-		return 0, 0, errno
+// View renders the application
+func (m Model) View() string {
+	if m.showHelp {
+		return appStyle.Render(
+			titleStyle.Render("📋 lazytodo - Help") + "\n\n" +
+				m.help.View(keys) + "\n\n" +
+				helpStyle.Render("Press ? to close help"),
+		)
 	}
-	return int(ws.Col), int(ws.Row), nil
+	
+	if m.inputMode != ModeNormal {
+		prompt := "Add Todo"
+		if m.inputMode == ModeEdit {
+			prompt = "Edit Todo"
+		}
+		
+		return appStyle.Render(
+			titleStyle.Render("📋 "+prompt) + "\n\n" +
+				inputStyle.Render(m.textInput.View()) + "\n\n" +
+				helpStyle.Render("Press Enter to save, Esc to cancel"),
+		)
+	}
+	
+	// Main view
+	var details string
+	if item, ok := m.list.SelectedItem().(TodoItem); ok {
+		todo := item.todo
+		details = detailsStyle.Render(
+			lipgloss.JoinVertical(lipgloss.Left,
+				lipgloss.NewStyle().Bold(true).Render("📝 Todo Details"),
+				"",
+				fmt.Sprintf("ID: %d", todo.ID),
+				fmt.Sprintf("Status: %s", func() string {
+					if todo.Completed {
+						return lipgloss.NewStyle().Foreground(lipgloss.Color("#04B575")).Render("✓ Completed")
+					}
+					return lipgloss.NewStyle().Foreground(lipgloss.Color("#FFB86C")).Render("○ Pending")
+				}()),
+				func() string {
+					if todo.Priority != "" {
+						return fmt.Sprintf("Priority: %s", priorityStyle.Render("("+todo.Priority+")"))
+					}
+					return ""
+				}(),
+				func() string {
+					if todo.CreatedDate != "" {
+						return fmt.Sprintf("Created: %s", todo.CreatedDate)
+					}
+					return ""
+				}(),
+				func() string {
+					if len(todo.Projects) > 0 {
+						return fmt.Sprintf("Projects: %s", projectStyle.Render(strings.Join(todo.Projects, ", ")))
+					}
+					return ""
+				}(),
+				func() string {
+					if len(todo.Contexts) > 0 {
+						return fmt.Sprintf("Contexts: %s", contextStyle.Render(strings.Join(todo.Contexts, ", ")))
+					}
+					return ""
+				}(),
+				"",
+				helpStyle.Render("Raw: "+todo.Raw),
+			),
+		)
+	} else {
+		details = detailsStyle.Render(
+			lipgloss.JoinVertical(lipgloss.Left,
+				lipgloss.NewStyle().Bold(true).Render("📝 Todo Details"),
+				"",
+				helpStyle.Render("Select a todo to view details"),
+			),
+		)
+	}
+	
+	// Status bar
+	statusBar := ""
+	if m.statusMsg != "" {
+		statusBar = "\n" + m.statusMsg
+	}
+	
+	// Stats
+	todos := m.todoManager.GetTodos()
+	total := len(todos)
+	completed := 0
+	for _, todo := range todos {
+		if todo.Completed {
+			completed++
+		}
+	}
+	pending := total - completed
+	
+	stats := helpStyle.Render(fmt.Sprintf(
+		"📊 Total: %d • ⏳ Pending: %d • ✅ Completed: %d • 🕒 %s",
+		total, pending, completed, time.Now().Format("15:04:05"),
+	))
+	
+	// Layout
+	mainContent := lipgloss.JoinHorizontal(
+		lipgloss.Top,
+		todoListStyle.Render(m.list.View()),
+		details,
+	)
+	
+	return appStyle.Render(
+		lipgloss.JoinVertical(
+			lipgloss.Left,
+			mainContent,
+			"",
+			stats,
+			statusBar,
+			"",
+			helpStyle.Render("Press ? for help • q to quit"),
+		),
+	)
 }
