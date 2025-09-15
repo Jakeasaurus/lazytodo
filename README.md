@@ -116,35 +116,35 @@ export REPORT_FILE="$TODO_DIR/report.txt"
 **One-liner installation:**
 ```bash
 # Download and install latest release
-curl -sSL https://raw.githubusercontent.com/zachreborn/lazytodo/main/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/jakeasaurus/lazytodo/main/install.sh | bash
 ```
 
 ### 🍎 **macOS (Homebrew)**
 
 ```bash
 # Coming soon - Homebrew tap
-# brew install zachreborn/tap/lazytodo
+# brew install jakeasaurus/tap/lazytodo
 
 # For now, use the install script or build from source
 ```
 
 ### 📦 **Download Pre-built Binaries**
 
-Download from [GitHub Releases](https://github.com/zachreborn/lazytodo/releases):
+Download from [GitHub Releases](https://github.com/jakeasaurus/lazytodo/releases):
 
 ```bash
 # macOS (Intel)
-curl -L -o lazytodo https://github.com/zachreborn/lazytodo/releases/latest/download/lazytodo-darwin-amd64
+curl -L -o lazytodo https://github.com/jakeasaurus/lazytodo/releases/latest/download/lazytodo-darwin-amd64
 chmod +x lazytodo
 sudo mv lazytodo /usr/local/bin/
 
 # macOS (Apple Silicon)
-curl -L -o lazytodo https://github.com/zachreborn/lazytodo/releases/latest/download/lazytodo-darwin-arm64
+curl -L -o lazytodo https://github.com/jakeasaurus/lazytodo/releases/latest/download/lazytodo-darwin-arm64
 chmod +x lazytodo
 sudo mv lazytodo /usr/local/bin/
 
 # Linux (x86_64)
-curl -L -o lazytodo https://github.com/zachreborn/lazytodo/releases/latest/download/lazytodo-linux-amd64
+curl -L -o lazytodo https://github.com/jakeasaurus/lazytodo/releases/latest/download/lazytodo-linux-amd64
 chmod +x lazytodo
 sudo mv lazytodo /usr/local/bin/
 ```
@@ -153,7 +153,7 @@ sudo mv lazytodo /usr/local/bin/
 
 ```bash
 # Clone the repository
-git clone https://github.com/zachreborn/lazytodo.git
+git clone https://github.com/jakeasaurus/lazytodo.git
 cd lazytodo
 
 # Option 1: Use Makefile (recommended)
@@ -193,7 +193,7 @@ To remove lazytodo from your system:
 
 ```bash
 # Using the uninstall script
-curl -sSL https://raw.githubusercontent.com/zachreborn/lazytodo/main/uninstall.sh | bash
+curl -sSL https://raw.githubusercontent.com/jakeasaurus/lazytodo/main/uninstall.sh | bash
 
 # Or if you have the repository
 ./uninstall.sh

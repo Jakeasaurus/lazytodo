@@ -4,8 +4,8 @@
 
 class Lazytodo < Formula
   desc "⚡ A synthwave TUI wrapper for todo.txt with electric vibes"
-  homepage "https://github.com/zachreborn/lazytodo"
-  url "https://github.com/zachreborn/lazytodo/archive/v0.2.0.tar.gz"
+  homepage "https://github.com/jakeasaurus/lazytodo"
+  url "https://github.com/jakeasaurus/lazytodo/archive/v0.2.0.tar.gz"
   # sha256 will be calculated and updated when releasing
   sha256 ""
   license "MIT"
