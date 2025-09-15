@@ -1,12 +1,12 @@
 # lazytodo
 
 ```
-██╗      █████╗ ███████╗██╗   ██╗████████╗ ██████╗ ██████╗  ██████╗ 
+██╗      █████╗ ███████╗██╗   ██╗████████╗ ██████╗ ██████╗  ██████╗
 ██║     ██╔══██╗╚══███╔╝╚██╗ ██╔╝╚══██╔══╝██╔═══██╗██╔══██╗██╔═══██╗
 ██║     ███████║  ███╔╝  ╚████╔╝    ██║   ██║   ██║██║  ██║██║   ██║
 ██║     ██╔══██║ ███╔╝    ╚██╔╝     ██║   ██║   ██║██║  ██║██║   ██║
 ███████╗██║  ██║███████╗   ██║      ██║   ╚██████╔╝██████╔╝╚██████╔╝
-╚══════╝╚═╝  ╚═╝╚══════╝   ╚═╝      ╚═╝    ╚═════╝ ╚═════╝  ╚═════╝ 
+╚══════╝╚═╝  ╚═╝╚══════╝   ╚═╝      ╚═╝    ╚═════╝ ╚═════╝  ╚═════╝
 ```
 
 <div align="center">
@@ -27,7 +27,7 @@ A fast, minimal TUI (Terminal User Interface) wrapper for todo.txt, inspired by 
 
 - **Modern TUI Interface** - Built with Charm's Bubble Tea framework for smooth, flicker-free rendering
 - **Todo.txt Compatible** - Full support for the standard todo.txt format
-- **Vim-inspired Navigation** - Efficient keyboard shortcuts for power users  
+- **Vim-inspired Navigation** - Efficient keyboard shortcuts for power users
 - **Real-time Updates** - Instant add/edit/delete operations with live file synchronization
 - **Priority Support** - Full (A), (B), (C) priority levels with color-coded display
 - **Tags & Contexts** - Support for @context and +project tags
@@ -35,9 +35,7 @@ A fast, minimal TUI (Terminal User Interface) wrapper for todo.txt, inspired by 
 - **Responsive Design** - Automatically adapts to your terminal size
 - **Clean Interface** - Minimal, distraction-free design focused on productivity
 
-#TODO: Screenshot 1 - Main Interface
-
-![Screenshot](images/lazytodo.png)
+![Screenshot](https://github.com/Jakeasaurus/lazytodo/pull/1/files#diff-a49fa364f4da7884d055ba4f71705603cdd0e38f8589ad4ed63a365f510967e8)
 
 <div align="center">
 <em>The main interface - clean, efficient todo management</em>
@@ -68,7 +66,7 @@ See installation instructions: [todo.txt-cli GitHub Repository](https://github.c
 Once installed, todo.txt-cli will create default files:
 
 - Default todo file: `~/todo.txt`
-- Done file: `~/done.txt`  
+- Done file: `~/done.txt`
 - Configuration: `~/.todo/config`
 
 **Customize file locations** by editing `~/.todo/config`. lazytodo will automatically read this configuration to locate your todo files.
@@ -144,6 +142,7 @@ go build -o lazytodo
 ### Usage
 
 Once installed, run from anywhere:
+
 ```bash
 # Start lazytodo
 lazytodo
@@ -175,7 +174,7 @@ rm -f ~/.local/bin/lazytodo
 make uninstall
 ```
 
-*Note: Your todo.txt files and configuration remain untouched.*
+_Note: Your todo.txt files and configuration remain untouched._
 
 ## Command Line Options
 
@@ -186,6 +185,7 @@ lazytodo --version       # Show version
 ```
 
 **Help output:**
+
 ```
 $ ./lazytodo --help
 lazytodo - A TUI wrapper for todo.txt (Charm Edition)
@@ -229,36 +229,43 @@ Input mode keys:
 ## Keybindings
 
 ### Navigation
+
 - `j` or `↓` - Move cursor down
 - `k` or `↑` - Move cursor up
 - `g` or `Home` - Go to first todo
 - `G` or `End` - Go to last todo
 
 ### Todo Actions
+
 - `a` - Add new todo (uses command window)
 - `x` or `Space` - Toggle todo completion
 - `d` - Delete selected todo
 - `e` - Edit selected todo (uses command window)
 
 ### Filtering and Search
+
 - `/` - Filter todos (uses command window)
 - `p` - Filter by project
 - `c` - Filter by context
 
 ### Priority Setting
+
 - `1` - Set priority (A)
 - `2` - Set priority (B)
 - `3` - Set priority (C)
 - `0` - Remove priority
 
 ### View Options
+
 - `v` - Cycle through view modes
 - `?` - Show/hide help screen
 - `r` - Refresh (reload from todo.txt file)
 - `q` or `Ctrl+C` - Quit
 
 ### Command Window Input
-*When using the command window (add/edit/filter):*
+
+_When using the command window (add/edit/filter):_
+
 - `Enter` - Confirm action or apply filter
 - `Escape` - Cancel and return to list
 - `Backspace` - Delete character
@@ -288,20 +295,23 @@ x 2025-09-14 Complete project documentation +work
 **lazytodo** automatically reads your todo.txt configuration from `~/.todo/config`:
 
 **Default Locations:**
+
 - Todo file: `~/todo.txt`
-- Done file: `~/done.txt`  
+- Done file: `~/done.txt`
 - Configuration: `~/.todo/config`
 
 **Custom Configuration:**
+
 ```bash
 export TODO_DIR="/path/to/your/todo/directory"
 export TODO_FILE="$TODO_DIR/todo.txt"
 export DONE_FILE="$TODO_DIR/done.txt"
 ```
 
-*If no configuration file exists, lazytodo will use the default locations.*
+_If no configuration file exists, lazytodo will use the default locations._
 
 **File structure example:**
+
 ```
 $ ls -la ~/
 -rw-r--r-- 1 user staff  256 Sep 15 10:30 todo.txt
@@ -319,6 +329,7 @@ export DONE_FILE="$TODO_DIR/done.txt"
 ### Sorting
 
 Todos are automatically sorted by:
+
 1. Completion status (incomplete first)
 2. Priority (A > B > C > no priority)
 3. ID/creation order
@@ -332,6 +343,7 @@ New todos automatically get the current date as their creation date.
 Changes are immediately saved to your todo.txt file, so you can use lazytodo alongside other todo.txt tools.
 
 **Live sync example:**
+
 ```bash
 # Changes in lazytodo are immediately saved
 $ echo "(A) 2025-09-15 New urgent task" >> ~/todo.txt
@@ -366,6 +378,7 @@ $ tail ~/todo.txt
 - **Portable** - Single binary, no dependencies
 
 **Performance:**
+
 ```
 $ time ./lazytodo --version
 lazytodo version 1.0.0
@@ -394,3 +407,4 @@ $ ls -lh lazytodo
 **Made with ❤️ and Go**
 
 </div>
+
