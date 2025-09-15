@@ -1,36 +1,150 @@
-# lazytodo
+```
+██╗      █████╗ ███████╗██╗   ██╗████████╗ ██████╗ ██████╗  ██████╗
+██║     ██╔══██╗╚══███╔╝╚██╗ ██╔╝╚══██╔══╝██╔═══██╗██╔══██╗██╔═══██╗
+██║     ███████║  ███╔╝  ╚████╔╝    ██║   ██║   ██║██║  ██║██║   ██║
+██║     ██╔══██║ ███╔╝    ╚██╔╝     ██║   ██║   ██║██║  ██║██║   ██║
+███████╗██║  ██║███████╗   ██║      ██║   ╚██████╔╝██████╔╝╚██████╔╝
+╚══════╝╚═╝  ╚═╝╚══════╝   ╚═╝      ╚═╝    ╚═════╝ ╚═════╝  ╚═════╝
+```
 
-A fast, minimal TUI (Terminal User Interface) wrapper for todo.txt, inspired by lazygit. Manage your todos efficiently with keyboard shortcuts and a clean interface.
+<div align="center">
 
-## Features
+## 🌆 **NEON TODO TERMINAL** 🌆
 
-- **Pure Go** - No external dependencies
-- **todo.txt format** - Compatible with the standard todo.txt format
-- **Keyboard-driven** - Efficient navigation with vim-like keybindings
-- **Real-time editing** - Add, edit, delete, and toggle todos instantly
-- **Priority support** - Full support for (A), (B), (C) priority levels
-- **Context and project tags** - Support for @context and +project tags
-- **Clean interface** - Minimal, distraction-free UI
+### _A cyberpunk TUI wrapper for todo.txt with electric vibes_
 
-## Installation
+[![Electric Purple](https://img.shields.io/badge/Powered%20By-Electric%20Dreams-8A2BE2?style=for-the-badge&logo=lightning&logoColor=white)]()
+[![Neon Pink](https://img.shields.io/badge/Interface-Neon%20Glow-FF1493?style=for-the-badge&logo=terminal&logoColor=white)]()
+[![Chrome](https://img.shields.io/badge/Built%20With-Chrome%20Precision-00FFFF?style=for-the-badge&logo=go&logoColor=black)]()
 
-### Build from source
+</div>
+
+---
+
+**Experience todo management in full synthwave glory.** This isn't just another terminal app – it's a portal to productivity with that electric 80's aesthetic. Built with Charm's Bubble Tea framework for buttery-smooth rendering and neon-bright colors.
+
+> _"In the grid of productivity, every task glows with purpose."_
+
+```
+▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼
+█████████████████ ⚡ ELECTRIC FEATURES ⚡ █████████████████
+▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼
+```
+
+🎛️ **CHROME INTERFACE** - Powered by Charm's Bubble Tea framework for glass-smooth, flicker-free rendering that glows like neon
+
+💾 **RETRO COMPATIBILITY** - Full todo.txt format support - works with your existing workflow like a vintage synthesizer
+
+⚡ **LIGHTNING NAVIGATION** - Vim-inspired keybindings for maximum efficiency in the digital grid
+
+🔮 **REAL-TIME MATRIX** - Instant add/edit/delete operations with live updates that pulse through your system
+
+🌈 **PRIORITY SPECTRUM** - Full (A), (B), (C) priority support with color-coded neon highlighting
+
+🏷️ **TAGGED REALITY** - @context and +project tag support for organizing your digital life
+
+🔍 **LASER FILTERING** - Real-time search and filtering that cuts through data like light through darkness
+
+📱 **ADAPTIVE DISPLAY** - Multiple view modes that automatically adjust to your terminal dimensions
+
+✨ **MINIMAL NEON** - Clean, distraction-free interface that glows with purpose
+
+#TODO: Screenshot 1 - Main Interface
+
+![Screenshot description](images/lazytodo.png)
+
+<div align="center">
+<em>👆 The main interface - where productivity meets cyberpunk aesthetics</em>
+</div>
+
+```
+★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+♥♥♥♥♥♥♥♥♥♥ 🔌 SYSTEM REQUIREMENTS - JACK IN 🔌 ♥♥♥♥♥♥♥♥♥♥
+★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+```
+
+**Before entering the neon grid**, ensure your system has the core todo.txt framework:
+
+### 🍎 **macOS**
 
 ```bash
-git clone https://github.com/jakeasaurus/lazytodo.git
+# Install todo.txt-cli
+brew install todo-txt
+```
+
+### 🐧 **Linux (Ubuntu/Debian)**
+
+```bash
+# Install todo.txt-cli
+sudo apt-get install todotxt-cli
+```
+
+### 🌍 **Other Systems**
+
+See installation instructions: [todo.txt-cli GitHub Repository](https://github.com/todotxt/todo.txt-cli)
+
+### ⚙️ **Configuration**
+
+Once installed, todo.txt-cli will create default files:
+
+```
+💾 Default todo file: ~/todo.txt
+🗄 Done file: ~/done.txt
+⚙️ Configuration: ~/.todo/config
+```
+
+**Customize file locations** by editing `~/.todo/config`. lazytodo will automatically read this configuration to locate your todo files.
+
+**Example ~/.todo/config:**
+
+```bash
+# Todo.txt-cli configuration
+export TODO_DIR="$HOME/Documents/todos"
+export TODO_FILE="$TODO_DIR/todo.txt"
+export DONE_FILE="$TODO_DIR/done.txt"
+export REPORT_FILE="$TODO_DIR/report.txt"
+```
+
+```
+◆◇◆◇◆◇◆◇◆◇◆◇◆◇◆◇◆◇◆◇◆◇◆◇◆◇◆◇◆◇◆◇◆◇◆◇◆◇◆◇◆◇◆◇◆◇◆◇◆◇◆◇◆◇
+📟📟📟📟📟📟📟📟 🚀 INSTALL SEQUENCE - ENTER THE GRID 🚀 📟📟📟📟📟📟📟📟
+◆◇◆◇◆◇◆◇◆◇◆◇◆◇◆◇◆◇◆◇◆◇◆◇◆◇◆◇◆◇◆◇◆◇◆◇◆◇◆◇◆◇◆◇◆◇◆◇◆◇◆◇◆◇◆◇
+```
+
+### 🔭 **Build from Source**
+
+```bash
+# Clone the repository
+git clone https://github.com/zachreborn/lazytodo.git
+
+# Enter directory
 cd lazytodo
+
+# Build binary
 go build -o lazytodo
 ```
 
-### Run locally
+### ⚡ **Run**
 
 ```bash
+# Start lazytodo
 ./lazytodo
 ```
 
-## Usage
+**First run:**
 
-### Command Line Options
+```
+$ ./lazytodo
+[TUI launches with your todo list]
+```
+
+```
+⚫⬤⚫⬤⚫⬤⚫⬤⚫⬤⚫⬤⚫⬤⚫⬤⚫⬤⚫⬤⚫⬤⚫⬤⚫⬤⚫⬤⚫⬤⚫⬤⚫⬤⚫⬤⚫⬤⚫⬤⚫⬤⚫⬤⚫⬤⚫⬤
+🏢🏢🏢🏢🏢 🕹️ NEURAL INTERFACE PROTOCOLS 🕹️ 🏢🏢🏢🏢🏢
+⚫⬤⚫⬤⚫⬤⚫⬤⚫⬤⚫⬤⚫⬤⚫⬤⚫⬤⚫⬤⚫⬤⚫⬤⚫⬤⚫⬤⚫⬤⚫⬤⚫⬤⚫⬤⚫⬤⚫⬤⚫⬤⚫⬤⚫⬤⚫⬤
+```
+
+### 🔌 **Command Line Options**
 
 ```bash
 lazytodo                 # Start the TUI
@@ -38,107 +152,267 @@ lazytodo --help          # Show help
 lazytodo --version       # Show version
 ```
 
-### Keybindings
+**Help output:**
 
-#### Navigation
+```
+$ ./lazytodo --help
+lazytodo - A TUI wrapper for todo.txt (Charm Edition)
+
+Usage:
+  lazytodo                 Start the TUI
+  lazytodo --version       Show version
+  lazytodo --help          Show this help
+
+Key bindings (once in TUI):
+Navigation:
+  j/↓        Move down
+  k/↑        Move up
+  g/Home     Go to top
+  G/End      Go to bottom
+
+Todo actions:
+  a          Add new todo
+  e          Edit todo
+  d          Delete todo
+  x/Space    Toggle todo completion
+
+Priority:
+  1          Set priority A (highest)
+  2          Set priority B
+  3          Set priority C
+
+Other:
+  r          Refresh from file
+  /          Filter/search todos
+  ?          Show/hide help
+  q/Ctrl+C   Quit
+
+Input mode keys:
+  Enter      Submit input
+  Esc        Cancel input
+
+🎭 Powered by Charm - https://charm.sh
+```
+
+### ⚙️ **Keybindings**
+
+#### 🕺 **Navigation**
+
 - `j` or `↓` - Move cursor down
 - `k` or `↑` - Move cursor up
+- `g` or `Home` - Go to first todo
+- `G` or `End` - Go to last todo
 
-#### Todo Actions
-- `a` - Add new todo
+#### ⚡ **Todo Actions**
+
+- `a` - Add new todo (uses command window)
 - `x` or `Space` - Toggle todo completion
 - `d` - Delete selected todo
-- `e` - Edit selected todo
+- `e` - Edit selected todo (uses command window)
 
-#### Other
-- `r` - Refresh (reload from todo.txt file)
+#### 🔍 **Filtering and Search**
+
+- `/` - Filter todos (uses command window)
+- `p` - Filter by project
+- `c` - Filter by context
+
+#### 🌈 **Priority Setting**
+
+- `1` - Set priority (A)
+- `2` - Set priority (B)
+- `3` - Set priority (C)
+- `0` - Remove priority
+
+#### 📱 **View Options**
+
+- `v` - Cycle through view modes
 - `?` - Show/hide help screen
+- `r` - Refresh (reload from todo.txt file)
 - `q` or `Ctrl+C` - Quit
 
-#### Input Mode
-When adding or editing todos:
-- `Enter` - Save changes
-- `Escape` - Cancel without saving
+#### 🕹️ **Command Window Input**
+
+_When using the command window (add/edit/filter):_
+
+- `Enter` - Confirm action or apply filter
+- `Escape` - Cancel and return to list
 - `Backspace` - Delete character
-
-## Todo.txt Format
-
-lazytodo uses the standard todo.txt format:
+- Standard text input and cursor movement
 
 ```
-(A) 2023-12-01 Call Mom +family @home
-2023-12-01 Buy groceries +shopping @errands
-x 2023-11-30 Complete project documentation +work
-(B) 2023-12-02 Review pull requests +work @computer
+◈◉◈◉◈◉◈◉◈◉◈◉◈◉◈◉◈◉◈◉◈◉◈◉◈◉◈◉◈◉◈◉◈◉◈◉◈◉◈◉◈◉◈◉◈◉◈◉
+👾👾👾👾👾👾 💾 DATA FORMAT PROTOCOLS 💾 👾👾👾👾👾👾
+◈◉◈◉◈◉◈◉◈◉◈◉◈◉◈◉◈◉◈◉◈◉◈◉◈◉◈◉◈◉◈◉◈◉◈◉◈◉◈◉◈◉◈◉◈◉◈◉
 ```
 
-### Format Elements
+**lazytodo** processes data using the classic **todo.txt format** - a retro specification that's as clean as chrome:
+
+```bash
+(A) 2025-09-15 🚀 Launch rocket to Mars +space @launchpad
+2025-09-15 🌸 Buy neon flowers +shopping @cybermall
+x 2025-09-14 ✨ Complete synthwave playlist +music
+(B) 2025-09-16 💻 Code in electric dreams +work @terminal
+```
+
+### 🏷️ **Format Elements**
 
 - `x` - Marks completed todos
 - `(A)`, `(B)`, `(C)` - Priority levels (A = highest)
-- `2023-12-01` - Creation date (YYYY-MM-DD)
+- `2025-09-15` - Creation date (YYYY-MM-DD)
 - `+project` - Project tags
 - `@context` - Context tags
 
-### File Location
+### 📁 **File Locations**
 
-lazytodo looks for your todo.txt file in your home directory (`~/todo.txt`). If the file doesn't exist, it will be created when you add your first todo.
+**lazytodo** automatically reads your todo.txt configuration from `~/.todo/config`:
 
-## Features in Detail
+**Default Locations:**
 
-### Sorting
+```
+💾 Todo file: ~/todo.txt
+🗄 Done file: ~/done.txt
+⚙️ Configuration: ~/.todo/config
+```
+
+**Custom Configuration:**
+
+```bash
+export TODO_DIR="/path/to/your/todo/directory"
+export TODO_FILE="$TODO_DIR/todo.txt"
+export DONE_FILE="$TODO_DIR/done.txt"
+```
+
+_If no configuration file exists, lazytodo will use the default locations._
+
+**File structure example:**
+
+```
+$ ls -la ~/
+-rw-r--r-- 1 user staff  256 Sep 15 10:30 todo.txt
+-rw-r--r-- 1 user staff  128 Sep 15 10:30 done.txt
+drwxr-xr-x 3 user staff   96 Sep 15 10:30 .todo/
+
+$ cat ~/.todo/config
+export TODO_DIR="$HOME"
+export TODO_FILE="$TODO_DIR/todo.txt"
+export DONE_FILE="$TODO_DIR/done.txt"
+```
+
+```
+▪▫▪▫▪▫▪▫▪▫▪▫▪▫▪▫▪▫▪▫▪▫▪▫▪▫▪▫▪▫▪▫▪▫▪▫▪▫▪▫▪▫▪▫▪▫▪▫
+🌌🌌🌌🌌🌌🌌 ⚡ ADVANCED NEURAL FEATURES ⚡ 🌌🌌🌌🌌🌌🌌
+▪▫▪▫▪▫▪▫▪▫▪▫▪▫▪▫▪▫▪▫▪▫▪▫▪▫▪▫▪▫▪▫▪▫▪▫▪▫▪▫▪▫▪▫▪▫▪▫
+```
+
+### 🌀 **Sorting**
 
 Todos are automatically sorted by:
+
 1. Completion status (incomplete first)
 2. Priority (A > B > C > no priority)
 3. ID/creation order
 
-### Auto-dating
+### ⏰ **Auto-dating**
 
 New todos automatically get the current date as their creation date.
 
-### Real-time Updates
+### ⚡ **Real-time Updates**
 
 Changes are immediately saved to your todo.txt file, so you can use lazytodo alongside other todo.txt tools.
 
-## Screenshots
+**Live sync example:**
+
+```bash
+# Changes in lazytodo are immediately saved
+$ echo "(A) 2025-09-15 New urgent task" >> ~/todo.txt
+# Refresh lazytodo with 'r' to see the new task
+
+# Or edit in lazytodo and check the file
+$ tail ~/todo.txt
+2025-09-15 Buy groceries +shopping @store
+2025-09-15 Call dentist +health @phone
+```
 
 ```
-lazytodo - Todo.txt TUI
-
-> [ ] (A) Call Mom +family @home
-  [ ] Buy groceries +shopping @errands
-  [x] Complete project documentation +work
-  [ ] (B) Review pull requests +work @computer
-
-j/k: move, a: add, x: toggle, d: delete, e: edit, ?: help, q: quit
+▅▆▇█▉▊▋▌▍▎▏▐░▒▓▔▕▖▗▘▙▚▛▜▝▞▟■□▢▣▤▥▦▧▨▩▪▫▬▭▮▯
+🌆🌆🌆 🤝 JOIN THE NEON RESISTANCE 🤝 🌆🌆🌆
+▅▆▇█▉▊▋▌▍▎▏▐░▒▓▔▕▖▗▘▙▚▛▜▝▞▟■□▢▣▤▥▦▧▨▩▪▫▬▭▮▯
 ```
 
-## Contributing
+**Contributions welcome!** Here's how to contribute:
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
+1. 🍴 Fork the repository
+2. 🌱 Create a feature branch
+3. ⚡ Make your changes
+4. 🧪 Test thoroughly
+5. 🚀 Submit a pull request
 
-## License
+```
+▰▱▲△▴▵▶▷▸▹►▻▼▽▾▿◀◁◂◃◄◅◆◇◈◉◊○◌◍◎●◐◑◒◓◔◕◖◗◘◙
+📜📜📜📜📜📜 🔓 DIGITAL LICENSE MATRIX 🔓 📜📜📜📜📜📜
+▰▱▲△▴▵▶▷▸▹►▻▼▽▾▿◀◁◂◃◄◅◆◇◈◉◊○◌◍◎●◐◑◒◓◔◕◖◗◘◙
+```
 
-MIT License - see LICENSE file for details.
+**MIT License** - See LICENSE file for details.
 
-## Why lazytodo?
+```
+┃┏┓┗┛┣┫┳┻╇╋┃┏┓┗┛┣┫┳┻╇╋┃┏┓┗┛┣┫┳┻╇╋┃┏┓┗┛┣┫┳┻╇╋
+♥♥♥♥♥♥ 🎆 WHY CHOOSE THE NEON PATH? 🎆 ♥♥♥♥♥♥
+┃┏┓┗┛┣┫┳┻╇╋┃┏┓┗┛┣┫┳┻╇╋┃┏┓┗┛┣┫┳┻╇╋┃┏┓┗┛┣┫┳┻╇╋
+```
 
-- **Fast**: Minimal overhead, instant startup
-- **Simple**: No complex configuration or learning curve
-- **Compatible**: Works with existing todo.txt workflows
-- **Focused**: Does one thing well - managing todos
-- **Portable**: Single binary, no dependencies
+⚡ **Fast** - Minimal overhead, instant startup
 
-## Similar Projects
+🧠 **Simple** - No complex configuration or learning curve
 
-- [todo.txt-cli](https://github.com/todotxt/todo.txt-cli) - Command-line tool for todo.txt
-- [lazygit](https://github.com/jesseduffield/lazygit) - TUI for git (inspiration for this project)
+🌐 **Compatible** - Works with existing todo.txt workflows
+
+🎯 **Focused** - Does one thing well - managing todos
+
+🚀 **Portable** - Single binary, no dependencies
+
+**Performance:**
+
+```
+$ time ./lazytodo --version
+lazytodo version 1.0.0
+
+real    0m0.003s
+user    0m0.001s
+sys     0m0.001s
+
+# Binary size
+$ ls -lh lazytodo
+-rwxr-xr-x 1 user staff 4.8M Sep 15 10:22 lazytodo
+```
+
+```
+⭐✨⭐✨⭐✨⭐✨⭐✨⭐✨⭐✨⭐✨⭐✨⭐✨⭐✨⭐✨⭐✨⭐✨⭐✨⭐✨⭐✨⭐✨⭐✨⭐✨⭐✨
+🏆🏆🏆 🌌 EXPLORE THE DIGITAL COSMOS 🌌 🏆🏆🏆
+⭐✨⭐✨⭐✨⭐✨⭐✨⭐✨⭐✨⭐✨⭐✨⭐✨⭐✨⭐✨⭐✨⭐✨⭐✨⭐✨⭐✨⭐✨⭐✨⭐✨⭐✨
+```
+
+**Similar Projects:**
+
+💻 [**todo.txt-cli**](https://github.com/todotxt/todo.txt-cli) - Command-line tool for todo.txt
+
+🎆 [**lazygit**](https://github.com/jesseduffield/lazygit) - TUI for git (inspiration for this project)
 
 ---
 
-Made with ❤️ and Go
+<div align="center">
+
+```
+▄▄ █▄▄▄█ ▄▄▄▄ ▄▄▄ ▄▄▄▄
+▄▄▄ █   █ █  █ █  █  █
+███ █▀▀▀█ █  █ █  █  █
+███ █   █ ▀▀▀▀ ▀▀▀ ▀▀▀▀
+```
+
+### **Made with 💖 Electric Love 💖 and ⚡ Go Lightning ⚡**
+
+_In the neon-lit terminals of tomorrow, productivity glows eternal_
+
+🎆 **Welcome to the future of todo management** 🎆
+
+</div>

@@ -1,0 +1,116 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.23'
+    
+    - name: Run tests
+      run: go test -v ./...
+    
+    - name: Build binaries
+      run: |
+        # Create release directory
+        mkdir -p release
+        
+        # Linux
+        GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o release/lazytodo-linux-amd64 .
+        GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o release/lazytodo-linux-arm64 .
+        
+        # macOS
+        GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o release/lazytodo-darwin-amd64 .
+        GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o release/lazytodo-darwin-arm64 .
+        
+        # Windows
+        GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o release/lazytodo-windows-amd64.exe .
+        GOOS=windows GOARCH=arm64 go build -ldflags="-s -w" -o release/lazytodo-windows-arm64.exe .
+    
+    - name: Create checksums
+      run: |
+        cd release
+        sha256sum * > checksums.txt
+    
+    - name: Generate release notes
+      id: release_notes
+      run: |
+        TAG=${GITHUB_REF#refs/tags/}
+        echo "tag=$TAG" >> $GITHUB_OUTPUT
+        
+        # Generate release notes
+        cat > release_notes.md << EOF
+        ## 🌆 lazytodo $TAG - Electric Release ⚡
+        
+        > *Another step into the neon future of productivity*
+        
+        ### 📦 Installation
+        
+        Download the appropriate binary for your system:
+        
+        **macOS:**
+        \`\`\`bash
+        # Intel Macs
+        curl -L -o lazytodo https://github.com/zachreborn/lazytodo/releases/download/$TAG/lazytodo-darwin-amd64
+        chmod +x lazytodo
+        
+        # Apple Silicon Macs
+        curl -L -o lazytodo https://github.com/zachreborn/lazytodo/releases/download/$TAG/lazytodo-darwin-arm64
+        chmod +x lazytodo
+        \`\`\`
+        
+        **Linux:**
+        \`\`\`bash
+        # x86_64
+        curl -L -o lazytodo https://github.com/zachreborn/lazytodo/releases/download/$TAG/lazytodo-linux-amd64
+        chmod +x lazytodo
+        
+        # ARM64
+        curl -L -o lazytodo https://github.com/zachreborn/lazytodo/releases/download/$TAG/lazytodo-linux-arm64
+        chmod +x lazytodo
+        \`\`\`
+        
+        **Windows:**
+        Download \`lazytodo-windows-amd64.exe\` or \`lazytodo-windows-arm64.exe\`
+        
+        ### 🔐 Verification
+        Verify your download with checksums:
+        \`\`\`bash
+        curl -L -o checksums.txt https://github.com/zachreborn/lazytodo/releases/download/$TAG/checksums.txt
+        sha256sum -c checksums.txt
+        \`\`\`
+        
+        ### 🚀 What's New
+        See commit history for detailed changes in this release.
+        
+        ---
+        
+        **Ready to manage todos in electric style?** ⚡ Welcome to the neon grid! 🌆
+        EOF
+    
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          release/*
+        body_path: release_notes.md
+        tag_name: ${{ steps.release_notes.outputs.tag }}
+        name: "lazytodo ${{ steps.release_notes.outputs.tag }}"
+        draft: false
+        prerelease: false

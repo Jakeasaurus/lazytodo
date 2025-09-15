@@ -1,4 +1,4 @@
-module lazytodo
+module github.com/zachreborn/lazytodo
 
 go 1.25.1
 

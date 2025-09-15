@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -16,7 +17,7 @@ import (
 // Styles using Lip Gloss
 var (
 	appStyle = lipgloss.NewStyle().
-		Padding(1, 2)
+		Padding(0, 1)
 
 	titleStyle = lipgloss.NewStyle().
 		Foreground(lipgloss.Color("#FAFAFA")).
@@ -30,16 +31,12 @@ var (
 	todoListStyle = lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("#874BFD")).
-		Padding(0, 1).
-		Height(20).
-		Width(50)
+		Padding(0, 1)
 
 	detailsStyle = lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("#F25D94")).
-		Padding(0, 1).
-		Height(20).
-		Width(30)
+		Padding(0, 1)
 
 	helpStyle = lipgloss.NewStyle().
 		Foreground(lipgloss.Color("#626262"))
@@ -64,6 +61,25 @@ var (
 	contextStyle = lipgloss.NewStyle().
 		Foreground(lipgloss.Color("#FFAF5F"))
 )
+
+// InputMode represents the current input mode
+type InputMode int
+
+const (
+	ModeNormal InputMode = iota
+	ModeAdd
+	ModeEdit
+	ModeFilter
+)
+
+// Cursor control functions
+func hideCursor() {
+	fmt.Fprint(os.Stderr, "\033[?25l")
+}
+
+func showCursor() {
+	fmt.Fprint(os.Stderr, "\033[?25h")
+}
 
 // TodoItem represents a todo item for the list component
 type TodoItem struct {
@@ -130,32 +146,43 @@ type Model struct {
 	statusMsg   string
 	width       int
 	height      int
+	// Custom filtering
+	isFiltering bool
+	filterInput textinput.Model
+	filterText  string
 }
 
 // Key bindings
 type keyMap struct {
-	Up    key.Binding
-	Down  key.Binding
-	Add   key.Binding
-	Edit  key.Binding
-	Delete key.Binding
-	Toggle key.Binding
-	Help   key.Binding
-	Quit   key.Binding
-	Refresh key.Binding
-	Enter   key.Binding
-	Escape  key.Binding
+	Up       key.Binding
+	Down     key.Binding
+	Add      key.Binding
+	Edit     key.Binding
+	Delete   key.Binding
+	Toggle   key.Binding
+	Help     key.Binding
+	Quit     key.Binding
+	Refresh  key.Binding
+	Enter    key.Binding
+	Escape   key.Binding
+	Home     key.Binding
+	End      key.Binding
+	PriorityA key.Binding
+	PriorityB key.Binding
+	PriorityC key.Binding
+	Filter   key.Binding
 }
 
 func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Add, k.Toggle, k.Delete, k.Help, k.Quit}
+	return []key.Binding{k.Add, k.Edit, k.Toggle, k.Delete, k.Help, k.Quit}
 }
 
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.Up, k.Down, k.Add, k.Edit},
-		{k.Toggle, k.Delete, k.Refresh},
-		{k.Help, k.Quit},
+		{k.Up, k.Down, k.Home, k.End},
+		{k.Add, k.Edit, k.Delete, k.Toggle},
+		{k.PriorityA, k.PriorityB, k.PriorityC},
+		{k.Filter, k.Refresh, k.Help, k.Quit},
 	}
 }
 
@@ -204,6 +231,30 @@ var keys = keyMap{
 		key.WithKeys("esc"),
 		key.WithHelp("esc", "cancel"),
 	),
+	Home: key.NewBinding(
+		key.WithKeys("home", "g"),
+		key.WithHelp("home/g", "go to top"),
+	),
+	End: key.NewBinding(
+		key.WithKeys("end", "G"),
+		key.WithHelp("end/G", "go to bottom"),
+	),
+	PriorityA: key.NewBinding(
+		key.WithKeys("1"),
+		key.WithHelp("1", "set priority A"),
+	),
+	PriorityB: key.NewBinding(
+		key.WithKeys("2"),
+		key.WithHelp("2", "set priority B"),
+	),
+	PriorityC: key.NewBinding(
+		key.WithKeys("3"),
+		key.WithHelp("3", "set priority C"),
+	),
+	Filter: key.NewBinding(
+		key.WithKeys("/"),
+		key.WithHelp("/", "filter todos"),
+	),
 }
 
 // Initialize the model
@@ -220,7 +271,7 @@ func initialModel() Model {
 	l := list.New(items, list.NewDefaultDelegate(), 0, 0)
 	l.Title = "📋 Todo List"
 	l.SetShowStatusBar(true)
-	l.SetFilteringEnabled(true)
+	l.SetFilteringEnabled(false) // Disable built-in filtering, we'll implement our own
 	l.Styles.Title = titleStyle
 	l.Styles.PaginationStyle = helpStyle
 	l.Styles.HelpStyle = helpStyle
@@ -228,9 +279,16 @@ func initialModel() Model {
 	// Create text input
 	ti := textinput.New()
 	ti.Placeholder = "Enter your todo..."
-	ti.Focus()
+	ti.Blur() // Don't focus initially - only focus when in input mode
 	ti.CharLimit = 200
 	ti.Width = 50
+	
+	// Create filter input
+	fi := textinput.New()
+	fi.Placeholder = "Type to filter todos... (ESC to clear)"
+	fi.Blur()
+	fi.CharLimit = 100
+	fi.Width = 70 // Make it wider
 	
 	// Create help
 	h := help.New()
@@ -242,6 +300,10 @@ func initialModel() Model {
 		help:        h,
 		inputMode:   ModeNormal,
 		showHelp:    false,
+		// Custom filtering
+		isFiltering: false,
+		filterInput: fi,
+		filterText:  "",
 	}
 }
 
@@ -260,10 +322,44 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		
-		// Update list size
-		listWidth := msg.Width*2/3 - 4
-		listHeight := msg.Height - 10
-		m.list.SetSize(listWidth, listHeight)
+		// Adjust layout for small terminals
+		if msg.Height < 20 {
+			// Very small terminal - use most of the space for the list
+			listWidth := msg.Width - 10
+			listHeight := msg.Height - 8
+			if listHeight < 3 {
+				listHeight = 3
+			}
+			m.list.SetSize(listWidth, listHeight)
+		} else {
+			// Normal terminal size - use column layout
+			listWidth := msg.Width*3/5 - 4
+			listHeight := msg.Height - 12 // Account for command window, status, help
+			if listHeight < 5 {
+				listHeight = 5
+			}
+			m.list.SetSize(listWidth, listHeight)
+		}
+		
+		// Update text inputs width based on screen width
+		inputWidth := msg.Width - 20 // Leave some margin
+		if inputWidth > 80 {
+			inputWidth = 80
+		}
+		if inputWidth < 30 {
+			inputWidth = 30
+		}
+		m.textInput.Width = inputWidth
+		m.filterInput.Width = inputWidth
+		
+		// Update details panel width (only for normal sized terminals)
+		if msg.Height >= 20 {
+			detailsWidth := msg.Width*2/5 - 6 // Remaining space minus margins
+			if detailsWidth < 30 {
+				detailsWidth = 30
+			}
+			detailsStyle = detailsStyle.Width(detailsWidth)
+		}
 		
 		// Update help
 		m.help.Width = msg.Width
@@ -275,31 +371,60 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.inputMode != ModeNormal {
 			switch msg.String() {
 			case "enter":
-				// Submit input
-				input := strings.TrimSpace(m.textInput.Value())
-				if input != "" {
-					switch m.inputMode {
-					case ModeAdd:
-						m.todoManager.AddTodo(input)
-						m.statusMsg = statusMessageStyle("Added: " + input)
-					case ModeEdit:
-						if item, ok := m.list.SelectedItem().(TodoItem); ok {
-							m.todoManager.UpdateTodo(item.todo.ID, input)
-							m.statusMsg = statusMessageStyle("Updated todo")
+				switch m.inputMode {
+				case ModeAdd, ModeEdit:
+					// Submit input for add/edit
+					input := strings.TrimSpace(m.textInput.Value())
+					if input != "" {
+						switch m.inputMode {
+						case ModeAdd:
+							m.todoManager.AddTodo(input)
+							m.statusMsg = statusMessageStyle("Added: " + input)
+						case ModeEdit:
+							if item, ok := m.list.SelectedItem().(TodoItem); ok {
+								m.todoManager.UpdateTodo(item.todo.ID, input)
+								m.statusMsg = statusMessageStyle("Updated todo")
+							}
 						}
+						m.refreshList()
 					}
-					m.refreshList()
+					m.inputMode = ModeNormal
+					m.textInput.SetValue("")
+					hideCursor()
+				case ModeFilter:
+					// Exit filter mode but keep filter active
+					m.inputMode = ModeNormal
+					m.isFiltering = false
+					hideCursor()
 				}
-				m.inputMode = ModeNormal
-				m.textInput.SetValue("")
 				return m, nil
 				
 			case "esc":
-				m.inputMode = ModeNormal
-				m.textInput.SetValue("")
+				switch m.inputMode {
+				case ModeAdd, ModeEdit:
+					m.inputMode = ModeNormal
+					m.textInput.SetValue("")
+				case ModeFilter:
+					// Clear filter and exit filter mode
+					m.inputMode = ModeNormal
+					m.isFiltering = false
+					m.filterText = ""
+					m.filterInput.SetValue("")
+					m.refreshList()
+					m.statusMsg = statusMessageStyle("Filter cleared")
+				}
+				hideCursor()
 				return m, nil
 			default:
-				m.textInput, cmd = m.textInput.Update(msg)
+				switch m.inputMode {
+				case ModeAdd, ModeEdit:
+					m.textInput, cmd = m.textInput.Update(msg)
+				case ModeFilter:
+					m.filterInput, cmd = m.filterInput.Update(msg)
+					// Update filter in real-time
+					m.filterText = m.filterInput.Value()
+					m.refreshList()
+				}
 				return m, cmd
 			}
 		}
@@ -314,9 +439,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		
-		// Handle normal mode
+		// Handle normal mode keys
 		switch {
 		case key.Matches(msg, keys.Quit):
+			hideCursor()
 			return m, tea.Quit
 			
 		case key.Matches(msg, keys.Add):
@@ -324,6 +450,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.textInput.Placeholder = "Enter new todo..."
 			m.textInput.SetValue("")
 			m.textInput.Focus()
+			showCursor()
 			return m, nil
 			
 		case key.Matches(msg, keys.Edit):
@@ -332,6 +459,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.textInput.Placeholder = "Edit todo..."
 				m.textInput.SetValue(item.todo.Text)
 				m.textInput.Focus()
+				showCursor()
 			}
 			return m, nil
 			
@@ -364,6 +492,48 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, keys.Help):
 			m.showHelp = !m.showHelp
 			return m, nil
+			
+		case key.Matches(msg, keys.Home):
+			m.list.Select(0)
+			return m, nil
+			
+		case key.Matches(msg, keys.End):
+			m.list.Select(len(m.list.Items()) - 1)
+			return m, nil
+			
+		case key.Matches(msg, keys.PriorityA):
+			if item, ok := m.list.SelectedItem().(TodoItem); ok {
+				m.todoManager.SetPriority(item.todo.ID, "A")
+				m.statusMsg = statusMessageStyle("Set priority to A")
+				m.refreshList()
+			}
+			return m, nil
+			
+		case key.Matches(msg, keys.PriorityB):
+			if item, ok := m.list.SelectedItem().(TodoItem); ok {
+				m.todoManager.SetPriority(item.todo.ID, "B")
+				m.statusMsg = statusMessageStyle("Set priority to B")
+				m.refreshList()
+			}
+			return m, nil
+			
+		case key.Matches(msg, keys.PriorityC):
+			if item, ok := m.list.SelectedItem().(TodoItem); ok {
+				m.todoManager.SetPriority(item.todo.ID, "C")
+				m.statusMsg = statusMessageStyle("Set priority to C")
+				m.refreshList()
+			}
+			return m, nil
+			
+		case key.Matches(msg, keys.Filter):
+			m.inputMode = ModeFilter
+			m.isFiltering = true
+			m.filterInput.Focus()
+			// Set current filter text if any, otherwise empty
+			m.filterInput.SetValue(m.filterText)
+			showCursor()
+			m.statusMsg = statusMessageStyle("Filter mode active - type to search")
+			return m, nil
 		}
 		
 		// Update list
@@ -378,7 +548,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m *Model) refreshList() {
 	items := []list.Item{}
 	for _, todo := range m.todoManager.GetTodos() {
-		items = append(items, TodoItem{todo: todo})
+		// Apply filter if active
+		if m.filterText != "" {
+			// Check if todo matches filter (case-insensitive)
+			if strings.Contains(strings.ToLower(todo.Text), strings.ToLower(m.filterText)) ||
+				strings.Contains(strings.ToLower(todo.Raw), strings.ToLower(m.filterText)) {
+				items = append(items, TodoItem{todo: todo})
+			}
+		} else {
+			items = append(items, TodoItem{todo: todo})
+		}
 	}
 	m.list.SetItems(items)
 }
@@ -386,25 +565,21 @@ func (m *Model) refreshList() {
 // View renders the application
 func (m Model) View() string {
 	if m.showHelp {
-		return appStyle.Render(
-			titleStyle.Render("📋 lazytodo - Help") + "\n\n" +
-				m.help.View(keys) + "\n\n" +
-				helpStyle.Render("Press ? to close help"),
-		)
+		return lipgloss.NewStyle().
+			Margin(1, 2).
+			Render(
+				titleStyle.Render("📋 lazytodo - Help") + "\n\n" +
+					m.help.View(keys) + "\n\n" +
+					helpStyle.Render("Press ? to close help"),
+			)
 	}
 	
-	if m.inputMode != ModeNormal {
-		prompt := "Add Todo"
-		if m.inputMode == ModeEdit {
-			prompt = "Edit Todo"
-		}
-		
-		return appStyle.Render(
-			titleStyle.Render("📋 "+prompt) + "\n\n" +
-				inputStyle.Render(m.textInput.View()) + "\n\n" +
-				helpStyle.Render("Press Enter to save, Esc to cancel"),
-		)
-	}
+	// Add mode now uses command window instead of full-screen modal
+	
+	// Edit mode now uses command window instead of full-screen modal
+	
+	// Filter mode no longer uses full-screen modal
+	// It now uses the persistent command window
 	
 	// Main view
 	var details string
@@ -459,13 +634,7 @@ func (m Model) View() string {
 		)
 	}
 	
-	// Status bar
-	statusBar := ""
-	if m.statusMsg != "" {
-		statusBar = "\n" + m.statusMsg
-	}
-	
-	// Stats
+	// Stats with integrated status message
 	todos := m.todoManager.GetTodos()
 	total := len(todos)
 	completed := 0
@@ -476,27 +645,133 @@ func (m Model) View() string {
 	}
 	pending := total - completed
 	
-	stats := helpStyle.Render(fmt.Sprintf(
+	// Create status line that includes both stats and status message
+	statsText := fmt.Sprintf(
 		"📊 Total: %d • ⏳ Pending: %d • ✅ Completed: %d • 🕒 %s",
 		total, pending, completed, time.Now().Format("15:04:05"),
-	))
-	
-	// Layout
-	mainContent := lipgloss.JoinHorizontal(
-		lipgloss.Top,
-		todoListStyle.Render(m.list.View()),
-		details,
 	)
+	
+	var statusLine string
+	if m.statusMsg != "" {
+		// Show status message with stats on same line
+		statusLine = helpStyle.Render(statsText) + " • " + m.statusMsg
+	} else {
+		// Just show stats
+		statusLine = helpStyle.Render(statsText)
+	}
+	
+	// Create persistent command window
+	var commandWindow string
+	// Calculate command window width to match todo list area
+	var commandWidth int
+	if m.height < 20 {
+		// Small terminal - use most of the width
+		commandWidth = m.width - 12
+	} else {
+		// Normal terminal - match list width
+		commandWidth = m.width*3/5 - 8
+	}
+	if commandWidth < 30 {
+		commandWidth = 30
+	}
+	commandStyle := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("#FF7CCB")).
+		Padding(0, 1).
+		Width(commandWidth)
+	
+	if m.inputMode == ModeFilter {
+		// Show filter input with live match count
+		currentFilter := m.filterInput.Value()
+		matchCount := 0
+		if currentFilter != "" {
+			for _, todo := range m.todoManager.GetTodos() {
+				if strings.Contains(strings.ToLower(todo.Text), strings.ToLower(currentFilter)) ||
+					strings.Contains(strings.ToLower(todo.Raw), strings.ToLower(currentFilter)) {
+					matchCount++
+				}
+			}
+		}
+		
+		filterDisplay := fmt.Sprintf("🔍 Filter: %s", m.filterInput.View())
+		if currentFilter != "" {
+			filterDisplay += fmt.Sprintf(" (%d matches)", matchCount)
+		}
+		commandWindow = commandStyle.Render(filterDisplay)
+	} else if m.inputMode == ModeAdd {
+		// Show add input in command window
+		commandWindow = commandStyle.Render(
+			fmt.Sprintf("➕ Add Todo: %s", m.textInput.View()),
+		)
+	} else if m.inputMode == ModeEdit {
+		// Show edit input in command window
+		commandWindow = commandStyle.Render(
+			fmt.Sprintf("✏️ Edit Todo: %s", m.textInput.View()),
+		)
+	} else if m.filterText != "" {
+		// Show active filter status with match count
+		matchCount := 0
+		for _, todo := range m.todoManager.GetTodos() {
+			if strings.Contains(strings.ToLower(todo.Text), strings.ToLower(m.filterText)) ||
+				strings.Contains(strings.ToLower(todo.Raw), strings.ToLower(m.filterText)) {
+				matchCount++
+			}
+		}
+		commandWindow = commandStyle.Render(
+			fmt.Sprintf("🔍 Active filter: '%s' (%d matches, press / to edit)", m.filterText, matchCount),
+		)
+	} else {
+		// Show default command prompt
+		commandWindow = commandStyle.Render(
+			"Command: a to add • e to edit • / to filter • ? for help",
+		)
+	}
+	
+	// Create todo list content with command window at top
+	todoListContent := lipgloss.JoinVertical(
+		lipgloss.Left,
+		commandWindow,
+		"", // Spacing
+		m.list.View(),
+	)
+	
+	// Layout with proper spacing - adjust for terminal size
+	var mainContent string
+	if m.height < 20 {
+		// Small terminal - show only todo list with command window
+		mainContent = lipgloss.NewStyle().
+			Margin(1, 0).
+			Render(todoListContent) // todoListContent already includes command window
+	} else {
+		// Normal terminal - show both todo list and details
+		mainContent = lipgloss.NewStyle().
+			Margin(1, 0).
+			Render(
+				lipgloss.JoinHorizontal(
+					lipgloss.Top,
+					todoListStyle.Render(todoListContent),
+					" ", // Add space between panels
+					details,
+				),
+			)
+	}
+	
+	// Show appropriate help text based on mode
+	var helpText string
+	if m.inputMode == ModeAdd || m.inputMode == ModeEdit || m.inputMode == ModeFilter {
+		helpText = "Enter: save • ESC: cancel • ? for help • q to quit"
+	} else {
+		helpText = "Press ? for help • q to quit"
+	}
 	
 	return appStyle.Render(
 		lipgloss.JoinVertical(
 			lipgloss.Left,
 			mainContent,
 			"",
-			stats,
-			statusBar,
+			statusLine,
 			"",
-			helpStyle.Render("Press ? for help • q to quit"),
+			helpStyle.Render(helpText),
 		),
 	)
 }
