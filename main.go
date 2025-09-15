@@ -28,7 +28,7 @@ func main() {
 
 	if _, err := p.Run(); err != nil {
 		// Ensure cursor is shown on error exit
-		fmt.Fprint(os.Stderr, "\033[?25h") 
+		fmt.Fprint(os.Stderr, "\033[?25h")
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
