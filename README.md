@@ -119,14 +119,18 @@ export REPORT_FILE="$TODO_DIR/report.txt"
 curl -sSL https://raw.githubusercontent.com/jakeasaurus/lazytodo/main/install.sh | bash
 ```
 
-### 🍎 **macOS (Homebrew)**
+### 🍎 **macOS (Homebrew) - LIVE! ✨**
 
 ```bash
-# Coming soon - Homebrew tap
-# brew install jakeasaurus/tap/lazytodo
+# Add the tap and install
+brew tap jakeasaurus/tap
+brew install lazytodo
 
-# For now, use the install script or build from source
+# Or in one line
+brew install jakeasaurus/tap/lazytodo
 ```
+
+*🎆 Homebrew installation now available! The personal tap is live and ready.*
 
 ### 📦 **Download Pre-built Binaries**
 
