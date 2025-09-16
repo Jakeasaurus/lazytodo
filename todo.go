@@ -11,6 +11,24 @@ import (
 	"time"
 )
 
+// stripANSICodes removes ANSI escape sequences from a string
+func stripANSICodes(str string) string {
+	// Very aggressive ANSI code removal
+	// Remove common ANSI escape sequences
+	str = regexp.MustCompile(`\x1b\[[0-9;]*[a-zA-Z]`).ReplaceAllString(str, "")
+	str = regexp.MustCompile(`\033\[[0-9;]*[a-zA-Z]`).ReplaceAllString(str, "")
+	// Remove any sequence that looks like "number;number;number;numberm"
+	str = regexp.MustCompile(`[0-9]+;[0-9]+;[0-9]+;[0-9]+m`).ReplaceAllString(str, "")
+	// Remove partial sequences like "1;38;2;255;95;135m"
+	str = regexp.MustCompile(`[0-9;]+m`).ReplaceAllString(str, "")
+	// Remove any remaining control characters
+	str = regexp.MustCompile(`[\x00-\x1f\x7f-\x9f]`).ReplaceAllString(str, "")
+	// Remove any remaining escape sequences
+	str = regexp.MustCompile(`\x1b.*?m`).ReplaceAllString(str, "")
+	str = regexp.MustCompile(`\033.*?m`).ReplaceAllString(str, "")
+	return strings.TrimSpace(str)
+}
+
 type Todo struct {
 	ID          int
 	Raw         string
@@ -22,22 +40,106 @@ type Todo struct {
 	Contexts    []string
 }
 
+type TodoConfig struct {
+	TodoFile string
+	DoneFile string
+	TodoDir  string
+}
+
 type TodoManager struct {
 	todos    []Todo
 	filePath string
+	doneFile string
 	nextID   int
 }
 
-func NewTodoManager() *TodoManager {
+// parseConfigFile reads the todo.txt configuration file
+func parseConfigFile() TodoConfig {
 	homeDir, _ := os.UserHomeDir()
-	filePath := filepath.Join(homeDir, "todo.txt")
-	
+	configPath := filepath.Join(homeDir, ".todo", "config")
+
+	// Default configuration
+	config := TodoConfig{
+		TodoFile: filepath.Join(homeDir, "todo.txt"),
+		DoneFile: filepath.Join(homeDir, "done.txt"),
+		TodoDir:  homeDir,
+	}
+
+	// Try to read config file
+	file, err := os.Open(configPath)
+	if err != nil {
+		// Config file doesn't exist, use defaults
+		return config
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+
+		// Skip comments and empty lines
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+
+		// Look for export statements
+		if strings.HasPrefix(line, "export ") {
+			line = strings.TrimPrefix(line, "export ")
+		}
+
+		// Parse key=value pairs
+		parts := strings.SplitN(line, "=", 2)
+		if len(parts) != 2 {
+			continue
+		}
+
+		key := strings.TrimSpace(parts[0])
+		value := strings.TrimSpace(parts[1])
+
+		// Remove quotes if present
+		if strings.HasPrefix(value, `"`) && strings.HasSuffix(value, `"`) {
+			value = value[1 : len(value)-1]
+		}
+		if strings.HasPrefix(value, "'") && strings.HasSuffix(value, "'") {
+			value = value[1 : len(value)-1]
+		}
+
+		// Expand environment variables
+		value = os.ExpandEnv(value)
+
+		switch key {
+		case "TODO_DIR":
+			config.TodoDir = value
+		case "TODO_FILE":
+			config.TodoFile = value
+		case "DONE_FILE":
+			config.DoneFile = value
+		}
+	}
+
+	// If TODO_FILE is not absolute, make it relative to TODO_DIR
+	if !filepath.IsAbs(config.TodoFile) {
+		config.TodoFile = filepath.Join(config.TodoDir, config.TodoFile)
+	}
+
+	// If DONE_FILE is not absolute, make it relative to TODO_DIR
+	if !filepath.IsAbs(config.DoneFile) {
+		config.DoneFile = filepath.Join(config.TodoDir, config.DoneFile)
+	}
+
+	return config
+}
+
+func NewTodoManager() *TodoManager {
+	config := parseConfigFile()
+
 	tm := &TodoManager{
 		todos:    []Todo{},
-		filePath: filePath,
+		filePath: config.TodoFile,
+		doneFile: config.DoneFile,
 		nextID:   1,
 	}
-	
+
 	tm.Load()
 	return tm
 }
@@ -61,12 +163,12 @@ func (tm *TodoManager) Load() error {
 		if line == "" {
 			continue
 		}
-		
+
 		todo := tm.parseTodo(id, line)
 		tm.todos = append(tm.todos, todo)
 		id++
 	}
-	
+
 	tm.nextID = id
 	return scanner.Err()
 }
@@ -108,7 +210,8 @@ func (tm *TodoManager) parseTodo(id int, line string) Todo {
 		todo.Contexts = append(todo.Contexts, context[1])
 	}
 
-	todo.Text = strings.TrimSpace(text)
+	// Strip any ANSI codes and trim
+	todo.Text = strings.TrimSpace(stripANSICodes(text))
 	return todo
 }
 
@@ -124,7 +227,7 @@ func (tm *TodoManager) Save() error {
 			return err
 		}
 	}
-	
+
 	return nil
 }
 
@@ -133,7 +236,7 @@ func (tm *TodoManager) GetTodos() []Todo {
 		if tm.todos[i].Completed != tm.todos[j].Completed {
 			return !tm.todos[i].Completed
 		}
-		
+
 		if tm.todos[i].Priority != tm.todos[j].Priority {
 			if tm.todos[i].Priority == "" {
 				return false
@@ -143,20 +246,20 @@ func (tm *TodoManager) GetTodos() []Todo {
 			}
 			return tm.todos[i].Priority < tm.todos[j].Priority
 		}
-		
+
 		return tm.todos[i].ID < tm.todos[j].ID
 	})
-	
+
 	return tm.todos
 }
 
 func (tm *TodoManager) AddTodo(text string) error {
 	today := time.Now().Format("2006-01-02")
 	todoText := fmt.Sprintf("%s %s", today, text)
-	
+
 	todo := tm.parseTodo(tm.nextID, todoText)
 	tm.nextID++
-	
+
 	tm.todos = append(tm.todos, todo)
 	return tm.Save()
 }
@@ -164,13 +267,26 @@ func (tm *TodoManager) AddTodo(text string) error {
 func (tm *TodoManager) ToggleComplete(id int) error {
 	for i := range tm.todos {
 		if tm.todos[i].ID == id {
+			// Toggle completion status
+			tm.todos[i].Completed = !tm.todos[i].Completed
+
+			// Rebuild the raw string properly, ensuring no ANSI codes
+			prefix := ""
 			if tm.todos[i].Completed {
-				tm.todos[i].Raw = strings.TrimPrefix(tm.todos[i].Raw, "x ")
-				tm.todos[i].Completed = false
-			} else {
-				tm.todos[i].Raw = "x " + tm.todos[i].Raw
-				tm.todos[i].Completed = true
+				prefix = "x "
 			}
+			if tm.todos[i].Priority != "" {
+				prefix += fmt.Sprintf("(%s) ", tm.todos[i].Priority)
+			}
+			if tm.todos[i].CreatedDate != "" {
+				prefix += tm.todos[i].CreatedDate + " "
+			}
+
+			// Strip any ANSI codes from text before saving
+			cleanText := stripANSICodes(tm.todos[i].Text)
+			tm.todos[i].Text = cleanText
+			tm.todos[i].Raw = prefix + cleanText
+
 			return tm.Save()
 		}
 	}
@@ -200,8 +316,36 @@ func (tm *TodoManager) UpdateTodo(id int, newText string) error {
 			if tm.todos[i].CreatedDate != "" {
 				prefix += tm.todos[i].CreatedDate + " "
 			}
-			
-			tm.todos[i].Raw = prefix + newText
+
+			// Strip ANSI codes from new text
+			cleanText := stripANSICodes(newText)
+			tm.todos[i].Raw = prefix + cleanText
+			tm.todos[i] = tm.parseTodo(tm.todos[i].ID, tm.todos[i].Raw)
+			return tm.Save()
+		}
+	}
+	return fmt.Errorf("todo with ID %d not found", id)
+}
+
+func (tm *TodoManager) SetPriority(id int, priority string) error {
+	for i := range tm.todos {
+		if tm.todos[i].ID == id {
+			// Rebuild the raw string with new priority
+			prefix := ""
+			if tm.todos[i].Completed {
+				prefix = "x "
+			}
+			if priority != "" {
+				prefix += fmt.Sprintf("(%s) ", priority)
+			}
+			if tm.todos[i].CreatedDate != "" {
+				prefix += tm.todos[i].CreatedDate + " "
+			}
+
+			// Strip ANSI codes from text
+			cleanText := stripANSICodes(tm.todos[i].Text)
+			tm.todos[i].Text = cleanText
+			tm.todos[i].Raw = prefix + cleanText
 			tm.todos[i] = tm.parseTodo(tm.todos[i].ID, tm.todos[i].Raw)
 			return tm.Save()
 		}
