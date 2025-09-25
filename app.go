@@ -417,13 +417,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var cmds []tea.Cmd
 		
 		// Check for external file changes
-		// Check for file changes every 500ms using MD5 hash comparison
-		if time.Since(m.lastRefresh) > 500*time.Millisecond {
+		// Check for file changes every 250ms using MD5 hash comparison
+		if time.Since(m.lastRefresh) > 250*time.Millisecond {
 			changed, err := m.todoManager.LoadIfChanged()
 			if err == nil && changed {
 				// File content changed externally, refresh UI
 				m.refreshList()
-				m.statusMsg = statusMessageStyle("Auto-refreshed from file")
+				m.statusMsg = statusMessageStyle(fmt.Sprintf("Auto-refreshed from file (%d todos)", len(m.todoManager.GetTodos())))
 				// Clear status message after 3 seconds
 				cmds = append(cmds, tea.Tick(3*time.Second, func(time.Time) tea.Msg {
 					return clearStatusMsg{}
