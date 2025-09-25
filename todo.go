@@ -411,40 +411,44 @@ func (tm *TodoManager) StopAutoRefresh() error {
 // handleFileChange is called when the todo file changes externally
 func (tm *TodoManager) handleFileChange(reason watch.ChangeReason) {
 	// Reload the file and check if it actually changed
-	if err := tm.LoadIfChanged(); err != nil {
+	changed, err := tm.LoadIfChanged()
+	if err != nil {
 		return // Silently ignore errors
 	}
 
-	// Notify the UI if we have a callback
-	if tm.onAutoRefresh != nil {
+	// Only notify the UI if content actually changed
+	if changed && tm.onAutoRefresh != nil {
 		tm.onAutoRefresh(reason)
 	}
 }
 
 // LoadIfChanged reloads the todo file only if its content has actually changed
-func (tm *TodoManager) LoadIfChanged() error {
+// Returns true if the file was reloaded (content changed), false otherwise
+func (tm *TodoManager) LoadIfChanged() (bool, error) {
 	// Read file content to check for changes
 	content, err := os.ReadFile(tm.filePath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			// File doesn't exist, clear todos
+			// File doesn't exist, check if we had todos before
+			hadTodos := len(tm.todos) > 0
 			tm.todos = []Todo{}
 			tm.fileHash = [16]byte{}
-			return nil
+			return hadTodos, nil // Return true if we cleared existing todos
 		}
-		return err
+		return false, err
 	}
 
 	// Check if content changed using hash
 	newHash := md5.Sum(content)
 	if newHash == tm.fileHash {
 		// No change, skip reload
-		return nil
+		return false, nil
 	}
 
 	// Content changed, reload
 	tm.fileHash = newHash
-	return tm.Load()
+	err = tm.Load()
+	return true, err
 }
 
 // updateFileHash updates the stored hash of the file content
