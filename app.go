@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/jakeasaurus/lazytodo/internal/watch"
 )
 
 // Styles using Lip Gloss
@@ -144,12 +146,18 @@ type Model struct {
 	inputMode   InputMode
 	showHelp    bool
 	statusMsg   string
+	statusTimer *time.Timer
 	width       int
 	height      int
 	// Custom filtering
 	isFiltering bool
 	filterInput textinput.Model
 	filterText  string
+	// Auto-refresh plumbing
+	ctx           context.Context
+	cancel        context.CancelFunc
+	lastRefresh   time.Time
+	autoRefreshOn bool
 }
 
 // Key bindings
@@ -257,6 +265,9 @@ var keys = keyMap{
 	),
 }
 
+// clearStatusMsg is sent to clear status messages after a delay
+type clearStatusMsg struct{}
+
 // Initialize the model
 func initialModel() Model {
 	// Create todo manager
@@ -293,6 +304,8 @@ func initialModel() Model {
 	// Create help
 	h := help.New()
 
+	ctx, cancel := context.WithCancel(context.Background())
+
 	return Model{
 		todoManager: tm,
 		list:        l,
@@ -304,12 +317,45 @@ func initialModel() Model {
 		isFiltering: false,
 		filterInput: fi,
 		filterText:  "",
+		// Auto-refresh
+		ctx:           ctx,
+		cancel:        cancel,
+		lastRefresh:   time.Now(),
+		autoRefreshOn: false,
 	}
 }
 
 // Init initializes the model
 func (m Model) Init() tea.Cmd {
-	return nil
+	// Return commands to start auto-refresh and periodic ticks
+	return tea.Batch(
+		m.startAutoRefresh(),
+		tea.Tick(1*time.Second, func(time.Time) tea.Msg { return tickMsg{} }),
+	)
+}
+
+type tickMsg struct{}
+
+// AutoRefreshStartedMsg indicates auto-refresh was successfully started
+type AutoRefreshStartedMsg struct{}
+
+// startAutoRefresh returns a command that starts the file watcher
+func (m Model) startAutoRefresh() tea.Cmd {
+	return func() tea.Msg {
+		if m.todoManager == nil {
+			return nil
+		}
+
+		// Start the watcher - it will automatically trigger LoadIfChanged
+		err := m.todoManager.StartAutoRefresh(m.ctx, func(reason watch.ChangeReason) {
+			// File change detected - the callback happens in a goroutine
+			// We'll pick this up on the next tick
+		})
+		if err == nil {
+			return AutoRefreshStartedMsg{}
+		}
+		return nil
+	}
 }
 
 // Update handles messages
@@ -364,6 +410,42 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Update help
 		m.help.Width = msg.Width
 
+		return m, nil
+
+case tickMsg:
+		// Periodic tick - check for file changes and update UI
+		var cmds []tea.Cmd
+		
+		// Check for external file changes
+		if m.autoRefreshOn && time.Since(m.lastRefresh) > 500*time.Millisecond {
+			oldCount := len(m.todoManager.GetTodos())
+			if err := m.todoManager.LoadIfChanged(); err == nil {
+				newCount := len(m.todoManager.GetTodos())
+				if newCount != oldCount {
+					// File changed externally
+					m.refreshList()
+					m.statusMsg = statusMessageStyle("Auto-refreshed from file")
+					m.lastRefresh = time.Now()
+					// Clear status message after 3 seconds
+					cmds = append(cmds, tea.Tick(3*time.Second, func(time.Time) tea.Msg {
+						return clearStatusMsg{}
+					}))
+				}
+			}
+		}
+
+		// Schedule next tick
+		cmds = append(cmds, tea.Tick(1*time.Second, func(time.Time) tea.Msg { return tickMsg{} }))
+		return m, tea.Batch(cmds...)
+
+	case clearStatusMsg:
+		// Clear status message
+		m.statusMsg = ""
+		return m, nil
+
+	case AutoRefreshStartedMsg:
+		// Auto-refresh was successfully started
+		m.autoRefreshOn = true
 		return m, nil
 
 	case tea.KeyMsg:

@@ -2,6 +2,8 @@ package main
 
 import (
 	"bufio"
+	"context"
+	"crypto/md5"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,6 +11,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/jakeasaurus/lazytodo/internal/watch"
 )
 
 // stripANSICodes removes ANSI escape sequences from a string
@@ -47,10 +51,13 @@ type TodoConfig struct {
 }
 
 type TodoManager struct {
-	todos    []Todo
-	filePath string
-	doneFile string
-	nextID   int
+	todos        []Todo
+	filePath     string
+	doneFile     string
+	nextID       int
+	watcher      watch.Runner
+	fileHash     [16]byte // MD5 hash of file content for change detection
+	onAutoRefresh func(reason watch.ChangeReason) // Callback for auto-refresh events
 }
 
 // parseConfigFile reads the todo.txt configuration file
@@ -141,6 +148,7 @@ func NewTodoManager() *TodoManager {
 	}
 
 	tm.Load()
+	tm.setupWatcher()
 	return tm
 }
 
@@ -148,6 +156,8 @@ func (tm *TodoManager) Load() error {
 	file, err := os.Open(tm.filePath)
 	if err != nil {
 		if os.IsNotExist(err) {
+			tm.todos = []Todo{}
+			tm.fileHash = [16]byte{}
 			return nil
 		}
 		return err
@@ -170,6 +180,8 @@ func (tm *TodoManager) Load() error {
 	}
 
 	tm.nextID = id
+	// Update file hash after loading
+	tm.updateFileHash()
 	return scanner.Err()
 }
 
@@ -216,6 +228,13 @@ func (tm *TodoManager) parseTodo(id int, line string) Todo {
 }
 
 func (tm *TodoManager) Save() error {
+	// Suppress auto-refresh events for our own writes
+	var done func()
+	if tm.watcher != nil {
+		done = tm.watcher.BeginSelfWrite()
+		defer done()
+	}
+
 	file, err := os.Create(tm.filePath)
 	if err != nil {
 		return err
@@ -228,6 +247,8 @@ func (tm *TodoManager) Save() error {
 		}
 	}
 
+	// Update our file hash after successful write
+	tm.updateFileHash()
 	return nil
 }
 
@@ -351,4 +372,87 @@ func (tm *TodoManager) SetPriority(id int, priority string) error {
 		}
 	}
 	return fmt.Errorf("todo with ID %d not found", id)
+}
+
+// setupWatcher initializes the file watcher for auto-refresh
+func (tm *TodoManager) setupWatcher() {
+	watcher, err := watch.New(watch.Config{
+		Path:         tm.filePath,
+		Debounce:     300 * time.Millisecond,
+		SelfWriteTTL: 500 * time.Millisecond,
+		PollFallback: 2 * time.Second,
+	})
+	if err != nil {
+		// Silently fail - auto-refresh just won't work
+		return
+	}
+
+	tm.watcher = watcher
+}
+
+// StartAutoRefresh begins watching the todo file for external changes
+func (tm *TodoManager) StartAutoRefresh(ctx context.Context, callback func(watch.ChangeReason)) error {
+	if tm.watcher == nil {
+		return fmt.Errorf("file watcher not initialized")
+	}
+
+	tm.onAutoRefresh = callback
+	return tm.watcher.Start(ctx, tm.handleFileChange)
+}
+
+// StopAutoRefresh stops watching the todo file
+func (tm *TodoManager) StopAutoRefresh() error {
+	if tm.watcher == nil {
+		return nil
+	}
+	return tm.watcher.Stop()
+}
+
+// handleFileChange is called when the todo file changes externally
+func (tm *TodoManager) handleFileChange(reason watch.ChangeReason) {
+	// Reload the file and check if it actually changed
+	if err := tm.LoadIfChanged(); err != nil {
+		return // Silently ignore errors
+	}
+
+	// Notify the UI if we have a callback
+	if tm.onAutoRefresh != nil {
+		tm.onAutoRefresh(reason)
+	}
+}
+
+// LoadIfChanged reloads the todo file only if its content has actually changed
+func (tm *TodoManager) LoadIfChanged() error {
+	// Read file content to check for changes
+	content, err := os.ReadFile(tm.filePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			// File doesn't exist, clear todos
+			tm.todos = []Todo{}
+			tm.fileHash = [16]byte{}
+			return nil
+		}
+		return err
+	}
+
+	// Check if content changed using hash
+	newHash := md5.Sum(content)
+	if newHash == tm.fileHash {
+		// No change, skip reload
+		return nil
+	}
+
+	// Content changed, reload
+	tm.fileHash = newHash
+	return tm.Load()
+}
+
+// updateFileHash updates the stored hash of the file content
+func (tm *TodoManager) updateFileHash() {
+	content, err := os.ReadFile(tm.filePath)
+	if err != nil {
+		tm.fileHash = [16]byte{}
+		return
+	}
+	tm.fileHash = md5.Sum(content)
 }
